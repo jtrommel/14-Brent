@@ -1,0 +1,145 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage{graphicx} % werken met figuren
+\usepackage{gensymb} % werken met wetenschappelijke eenheden\usepackage{geometry}
+\usepackage{changepage} % http://ctan.org/pkg/changepage
+\usepackage[total={424pt,600pt},top=100pt,left=90pt]{geometry} % instelling van de paginaindeling
+\usepackage[dutch,british]{babel} % instelling van de taal (woordsplitsing, spellingscontrole)
+\usepackage[parfill]{parskip} % Paragrafen gescheiden door witte lijn en geen inspringing
+\usepackage{layout} % Gebruik in het begin om de layout-elementen van het document te verifiëren
+\usepackage[font=small,skip=3pt]{caption} % Minder ruimte tussen figuur/table en ondertitel. Ondertitel klein
+\usepackage{capt-of}
+\usepackage{indentfirst}
+\setlength{\parindent}{0.7cm}
+\usepackage{enumitem} % Laat enumerate werken met letters
+\usepackage{hyperref}
+\usepackage{url}
+
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+% Alter some LaTeX defaults for better treatment of figures:
+% See p.105 of "TeX Unbound" for suggested values.
+% See pp. 199-200 of Lamport's "LaTeX" book for details.
+%   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.9}	% max fraction of floats at bottom
+%   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \renewcommand{\textfraction}{0.1}	% allow minimal text w. figs
+%   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.8}	% require fuller float pages
+% N.B.: floatpagefraction MUST be less than topfraction !!
+\setcounter{secnumdepth}{3}
+
+\title{What will be the closing spot price for Brent crude oil on 10 november 2017 and on 29 December 2017?}
+\author{jtrommel}
+
+\begin{document}
+\date{}
+\SweaveOpts{concordance=TRUE,prefix.string=Brent}
+\maketitle
+
+<<echo=FALSE>>=
+library(tidyverse)
+library(lubridate)
+library(zoo)
+@
+
+\section{2017-11-02}
+
+\subsection{Reading the data}
+<<label=Brent_data,fig=TRUE,include=FALSE, echo=FALSE>>=
+Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=",", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
+Brent$Day <- mdy(Brent$Day)
+Brent17 <- Brent %>% filter(year(Day)==2017) %>% arrange(Day)
+Brent17 %>% 
+  ggplot() +
+  geom_point(aes(x=Day,y=Price) , size=1, color="red") +
+  labs(title="Europe Brent Spot Price", caption="https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=rbrte&f=D")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_data}
+\captionof{figure}{}
+\label{fig:Brent_data}
+\end{center}
+
+\subsection{Turning it into a time-series}
+
+Imputing missing values
+<<>>=
+allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
+Brent17_ext <- left_join(allDates,Brent17,by="Day")
+Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
+@
+
+Making a time-series
+<<>>=
+Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
+@
+
+\section{2017-11-03}
+
+\subsection{Making the forecast for 2017-11-10}
+
+<<>>=
+Brent_hw <- HoltWinters(Brent17_ts)
+@
+
+Calculating probabilities for GJO-ranges for 2017-11-10
+<<label=fcnov,fig=TRUE,include=FALSE, echo=FALSE>>=
+end.date <- ymd("2017-11-10")
+start.date <- max(Brent17$Day)
+days.ahead <- as.numeric(end.date - start.date)
+forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
+plot(Brent_hw,forecast)
+range_limits <- c(54, 57.3, 60.1, 63.4)
+fc <- as.data.frame(forecast)
+sigma <- (fc$upr[nrow(fc)] - fc$lwr[nrow(fc)])/4
+mu <- fc$fit[nrow(fc)]
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-fcnov}
+\captionof{figure}{Forecast for 2017-11-10}
+\label{fig:fcnov}
+\end{center}
+
+\textbf{Forecast 1 (nov): I keep the calculated values for my first forecast. O\%, 1\%, 15\%, 52\%, 32\%}
+
+\subsection{Making the forecast for 2017-12-29}
+
+Calculating probabilities for GJO-ranges for 2017-12-29
+
+<<label=fcdec,fig=TRUE,include=FALSE, echo=FALSE>>=
+end.date <- ymd("2017-12-29")
+start.date <- max(Brent17$Day)
+days.ahead <- as.numeric(end.date - start.date)
+forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
+plot(Brent_hw,forecast)
+range_limits <- c(40, 50, 60, 70)
+fc <- as.data.frame(forecast)
+sigma <- (fc$upr[nrow(fc)] - fc$lwr[nrow(fc)])/4
+mu <- fc$fit[nrow(fc)]
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-fcdec}
+\captionof{figure}{Forecast for 2017-12-29}
+\label{fig:fcdec}
+\end{center}
+
+\textbf{Forecast 1 (dec):} I change the numerical forecast based on the fact that a continued rise above 60\$ is unlikely because other producers will be able to come online. Therefore I reduce the probability of the highest range and give more probability to the 60-70 \% range. I change the calculated values to: \textbf{ 0\%, 0\%, 20\%, 70\%, 10\%} 
+
+\end{document}
