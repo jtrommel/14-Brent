@@ -32,7 +32,7 @@
 % N.B.: floatpagefraction MUST be less than topfraction !!
 \setcounter{secnumdepth}{3}
 
-\title{What will be the closing spot price for Brent crude oil on 10 november 2017 and on 29 December 2017?}
+\title{What will be the closing spot price for Brent crude oil on 10 November 2017 and on 29 December 2017?}
 \author{jtrommel}
 
 \begin{document}
@@ -46,13 +46,42 @@ library(lubridate)
 library(zoo)
 @
 
+<<>>=
+Brent_pred <- function(lees.date , pred.date , range.limits) {
+  reading.date <- ymd(lees.date)
+  Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB TRJ.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
+  Brent$Day <- mdy(Brent$Day)
+  Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
+  allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
+  Brent17_ext <- left_join(allDates,Brent17,by="Day")
+  Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
+  Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
+  Brent_hw <- HoltWinters(Brent17_ts)
+  end.date <- ymd(pred.date)
+  start.date <- max(Brent17$Day)
+  days.ahead <- as.numeric(end.date - start.date)
+  forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
+  plot(Brent_hw,forecast)
+  range_limits <- range.limits
+  fc <- as.data.frame(forecast)
+  sigma <- (fc$upr[nrow(fc)] - fc$lwr[nrow(fc)])/4
+  mu <- fc$fit[nrow(fc)]
+  for (i in c(1:5)) {
+    ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+  }
+}
+@
+
 \section{2017-11-02}
 
 \subsection{Reading the data}
 <<label=Brent_data,fig=TRUE,include=FALSE, echo=FALSE>>=
+reading.date <- ymd("2017-11-02")
 Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=",", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
 Brent$Day <- mdy(Brent$Day)
-Brent17 <- Brent %>% filter(year(Day)==2017) %>% arrange(Day)
+Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
 Brent17 %>% 
   ggplot() +
   geom_point(aes(x=Day,y=Price) , size=1, color="red") +
@@ -111,7 +140,7 @@ for (i in c(1:5)) {
 \label{fig:fcnov}
 \end{center}
 
-\textbf{Forecast 1 (nov): I keep the calculated values for my first forecast. O\%, 1\%, 15\%, 52\%, 32\%}
+\textbf{Forecast 1 (nov): I keep the calculated values for my first forecast. 0\%, 1\%, 15\%, 52\%, 32\%}
 
 \subsection{Making the forecast for 2017-12-29}
 
@@ -141,5 +170,116 @@ for (i in c(1:5)) {
 \end{center}
 
 \textbf{Forecast 1 (dec):} I change the numerical forecast based on the fact that a continued rise above 60\$ is unlikely because other producers will be able to come online. Therefore I reduce the probability of the highest range and give more probability to the 60-70 \% range. I change the calculated values to: \textbf{ 0\%, 0\%, 20\%, 70\%, 10\%} 
+
+\section{2017-11-06}
+
+The next release of EIA-data will only happen on November 8th, which is only two days before the first prediction date (November 10th). Furthermore: on November 3th the price shot up with 2\$ to above 62\$ and it has remained above this value since. So I add data from a different source (Wall Street Journal, \footnote{http://quotes.wsj.com/futures/UK/IFEU/LCOF8}).
+
+\subsection{Reading the data}
+<<label=Brent_data,fig=TRUE,include=FALSE, echo=FALSE>>=
+reading.date <- ymd("2017-11-06")
+Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB TRJ.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
+Brent$Day <- mdy(Brent$Day)
+Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
+Brent17 %>% 
+  ggplot() +
+  geom_point(aes(x=Day,y=Price) , size=1, color="red") +
+  labs(title="Europe Brent Spot Price", caption="https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=rbrte&f=D")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_data}
+\captionof{figure}{}
+\label{fig:Brent_data}
+\end{center}
+
+\subsection{Turning it into a time-series}
+
+Imputing missing values
+<<echo=FALSE>>=
+allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
+Brent17_ext <- left_join(allDates,Brent17,by="Day")
+Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
+@
+
+Making a time-series
+<<echo=FALSE>>=
+Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
+@
+
+\subsection{Making the forecast for 2017-11-10}
+
+<<echo=FALSE>>=
+Brent_hw <- HoltWinters(Brent17_ts)
+@
+
+Calculating probabilities for GJO-ranges for 2017-11-10
+<<label=fcnov,fig=TRUE,include=FALSE, echo=FALSE>>=
+end.date <- ymd("2017-11-10")
+start.date <- max(Brent17$Day)
+days.ahead <- as.numeric(end.date - start.date)
+forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
+plot(Brent_hw,forecast)
+range_limits <- c(54, 57.3, 60.1, 63.4)
+fc <- as.data.frame(forecast)
+sigma <- (fc$upr[nrow(fc)] - fc$lwr[nrow(fc)])/4
+mu <- fc$fit[nrow(fc)]
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-fcnov}
+\captionof{figure}{Forecast for 2017-11-10}
+\label{fig:fcnov}
+\end{center}
+
+\textbf{Forecast 2 (nov): I keep the calculated values for this second forecast. 0\%, 0\%, 1\%, 43\%, 56\%}
+
+\subsection{Making the forecast for 2017-12-29}
+
+Calculating probabilities for GJO-ranges for 2017-12-29
+
+<<label=fcdec,fig=TRUE,include=FALSE, echo=FALSE>>=
+end.date <- ymd("2017-12-29")
+start.date <- max(Brent17$Day)
+days.ahead <- as.numeric(end.date - start.date)
+forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
+plot(Brent_hw,forecast)
+range_limits <- c(40, 50, 60, 70)
+fc <- as.data.frame(forecast)
+sigma <- (fc$upr[nrow(fc)] - fc$lwr[nrow(fc)])/4
+mu <- fc$fit[nrow(fc)]
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-fcdec}
+\captionof{figure}{Forecast for 2017-12-29}
+\label{fig:fcdec}
+\end{center}
+
+\textbf{Forecast 2 (dec):} I am still thinking that going above 70\$ is improbable. Therefore I reduce the probability of the highest range also this time and give more probability to the 60-70 \% range. I change the calculated values to: \textbf{ 0\%, 0\%, 9\%, 71\%, 20\%} 
+
+\section{2017-11-07}
+
+Putting the calculations into a function.
+
+\subsection{Prediction for 2017-11-10}
+<<>>=
+Brent_pred("2017-11-06" , "2017-11-10" , c(54 , 57.3 , 60.1 , 63.4))
+@
+
+\subsection{Prediction for 2017-12-29}
+<<>>=
+Brent_pred("2017-11-06" , "2017-12-29" , c(40, 50, 60, 70))
+@
 
 \end{document}
