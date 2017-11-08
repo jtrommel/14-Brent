@@ -49,7 +49,7 @@ library(zoo)
 <<>>=
 Brent_pred <- function(lees.date , pred.date , range.limits) {
   reading.date <- ymd(lees.date)
-  Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB TRJ.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
+  Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
   Brent$Day <- mdy(Brent$Day)
   Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
   allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
@@ -58,8 +58,11 @@ Brent_pred <- function(lees.date , pred.date , range.limits) {
   Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
   Brent_hw <- HoltWinters(Brent17_ts)
   end.date <- ymd(pred.date)
+  print(end.date)
   start.date <- max(Brent17$Day)
+  print(start.date)
   days.ahead <- as.numeric(end.date - start.date)
+  print(days.ahead)
   forecast <- predict(Brent_hw, n.ahead = days.ahead, prediction.interval = T, level = 0.95)
   plot(Brent_hw,forecast)
   range_limits <- range.limits
@@ -79,7 +82,7 @@ Brent_pred <- function(lees.date , pred.date , range.limits) {
 \subsection{Reading the data}
 <<label=Brent_data,fig=TRUE,include=FALSE, echo=FALSE>>=
 reading.date <- ymd("2017-11-02")
-Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=",", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
+Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
 Brent$Day <- mdy(Brent$Day)
 Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
 Brent17 %>% 
@@ -282,4 +285,16 @@ Brent_pred("2017-11-06" , "2017-11-10" , c(54 , 57.3 , 60.1 , 63.4))
 Brent_pred("2017-11-06" , "2017-12-29" , c(40, 50, 60, 70))
 @
 
+
+\section{2017-11-08}
+
+\subsection{Prediction for 2017-11-10}
+<<>>=
+Brent_pred("2017-11-08" , "2017-11-10" , c(54 , 57.3 , 60.1 , 63.4))
+@
+
+\subsection{Prediction for 2017-12-29}
+<<>>=
+Brent_pred("2017-11-08" , "2017-12-29" , c(40, 50, 60, 70))
+@
 \end{document}
