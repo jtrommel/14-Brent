@@ -417,7 +417,7 @@ plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", 
 \label{fig:Brent_fc2}
 \end{center}
 
-Calcultaing probabilities
+Calculating probabilities
 
 <<>>=
 range_limits <- c(40, 50, 60, 70)
@@ -436,5 +436,93 @@ for (i in c(1:5)) {
 My previous forecast was: 0\%, 0\%, 9\%, 71\%, 20\%. For my new forecast I stick to the calculated values.
 
 \textbf{Forecast 5 (dec): 0\%, 0\%, 24\%, 71\%, 5\% }.
+
+\section{2017-11-24}
+
+<<>>=
+# Reading the data
+reading.date <- ymd("2017-11-24")
+Brent <- read.csv("data/RBRTEd-2b.csv",
+                  header=TRUE, sep=";", 
+                  dec=",",skip=3,col.names=c("Day","Price"),
+                  na.strings="NA",
+                  stringsAsFactors = FALSE)
+Brent$Day <- mdy(Brent$Day)
+Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
+# Interpolating the missing data on weekends etc.
+allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
+Brent17_ext <- left_join(allDates,Brent17,by="Day")
+Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
+# Transforming it into a time series object. For daily data Rob Hyndman advises to set the frequency parameter to 7
+Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
+# Decomposte the time series
+decomp_ts <- stl(Brent17_ts,s.window="periodic",robust=TRUE)$time.series
+# Reordering the results so that the dates are right and we add the variable Type which can have the values "original
+# data", "seasonal", "trend" and "remainder".
+decomp_stl <- data.frame(Price=c(Brent17_ext$interpol,as.numeric(decomp_ts)),
+                         Date=rep(Brent17_ext[,"Day"],ncol(decomp_ts)+1),
+                         Type=factor(rep(c("original data",colnames(decomp_ts)),
+                                          each=nrow(decomp_ts)),
+                                     levels=c("original data",colnames(decomp_ts))))
+@
+
+<<label=Brent_decompb,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(decomp_stl, aes(x=Date,y=Price)) +
+  geom_line() +
+  facet_grid(Type~., scales="free_y", switch="y")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_decompb}
+\captionof{figure}{Decomposed Brent17 data}
+\label{fig:Brent_decompb}
+\end{center}
+
+<<label=Brent_fcb,fig=TRUE,include=FALSE, echo=FALSE>>=
+end.date <- ymd("2017-12-29")
+start.date <- max(Brent17$Day)
+days.ahead <- as.numeric(end.date - start.date)
+fit.Brent <- ets(Brent17_ext$interpol,model="AAN")
+fc.Brent <- forecast(fit.Brent,h=days.ahead)
+plot(fc.Brent, main="Forecast model AAN", ylab="Price", xlab="Date", flty=2)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_fcb}
+\captionof{figure}{Forecast}
+\label{fig:Brent_fcb}
+\end{center}
+
+
+<<label=Brent_fc2b,fig=TRUE,include=FALSE, echo=FALSE>>=
+fit.Brent2 <- ets(Brent17_ext$interpol)
+fit.Brent2
+fc.Brent2 <- forecast(fit.Brent2,h=days.ahead)
+plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", flty=2)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_fc2b}
+\captionof{figure}{Forecast}
+\label{fig:Brent_fc2b}
+\end{center}
+
+Calculating probabilities
+
+<<>>=
+range_limits <- c(40, 50, 60, 70)
+fc <- as.data.frame(fc.Brent2)
+sigma <- (fc$"Hi 95"[nrow(fc)] - fc$"Lo 95"[nrow(fc)])/4
+print(paste("sigma=",round(sigma,2)))
+mu <- fc$"Point Forecast"[nrow(fc)]
+print(paste("mu=",round(mu,2)))
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+\textbf{Forecast 6 (dec): 0\%, 0\%, 37\%, 61\%, 2\% }.
 
 \end{document}
