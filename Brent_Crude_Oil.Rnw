@@ -47,7 +47,7 @@ library(forecast)
 library(zoo)
 @
 
-<<>>=
+<<echo=FALSE>>=
 Brent_pred <- function(lees.date , pred.date , range.limits) {
   reading.date <- ymd(lees.date)
   Brent <- read.csv("data/Europe_Brent_Spot_Price_FOB.csv",header=TRUE, sep=";", dec=".",skip=4,col.names=c("Day","Price"),na.strings="NA",stringsAsFactors = FALSE)
@@ -103,14 +103,14 @@ Brent17 %>%
 \subsection{Turning it into a time-series}
 
 Imputing missing values
-<<>>=
+<<echo=FALSE>>=
 allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
 Brent17_ext <- left_join(allDates,Brent17,by="Day")
 Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
 @
 
 Making a time-series
-<<>>=
+<<echo=FALSE>>=
 Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
 @
 
@@ -118,7 +118,7 @@ Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03"
 
 \subsection{Making the forecast for 2017-11-10}
 
-<<>>=
+<<echo=FALSE>>=
 Brent_hw <- HoltWinters(Brent17_ts)
 @
 
@@ -287,12 +287,12 @@ for (i in c(1:5)) {
 Putting the calculations into a function.
 
 \subsection{Prediction for 2017-11-10}
-<<>>=
+<<echo=FALSE>>=
 Brent_pred("2017-11-06" , "2017-11-10" , c(54 , 57.3 , 60.1 , 63.4))
 @
 
 \subsection{Prediction for 2017-12-29}
-<<>>=
+<<echo=FALSE>>=
 Brent_pred("2017-11-06" , "2017-12-29" , c(40, 50, 60, 70))
 @
 
@@ -300,14 +300,14 @@ Brent_pred("2017-11-06" , "2017-12-29" , c(40, 50, 60, 70))
 \section{2017-11-08}
 
 \subsection{Prediction for 2017-11-10}
-<<>>=
+<<echo=FALSE>>=
 Brent_pred("2017-11-08" , "2017-11-10" , c(54 , 57.3 , 60.1 , 63.4))
 @
 
 \textbf{Forecast 3 (nov): I reduce the calculated values because the rise has stopped in the last two days. The forecast overemphasises this rise. My forecast: 0\%, 0\%, 0\%, 60\%, 40\%}
 
 \subsection{Prediction for 2017-12-29}
-<<>>=
+<<echo=FALSE>>=
 Brent_pred("2017-11-08" , "2017-12-29" , c(40, 50, 60, 70))
 @
 
@@ -346,7 +346,7 @@ Brent_pred("2017-11-09" , "2017-12-29" , c(40, 50, 60, 70))
 
 Previous modelling was sloppy. Look at the time scale: it goes beyond 2018! However, that is not so much a problem of forecasting, then of setting up the graph. The EIA-data come in very slowly: today the most recent info is dated November 13th. I have made some changes in the forecasting approach. I first decompose the data in a trend, a periodic element and the remainder:
 
-<<>>=
+<<echo=FALSE>>=
 # Reading the data
 reading.date <- ymd("2017-11-19")
 Brent <- read.csv("data/RBRTEd-2.csv",
@@ -419,7 +419,7 @@ plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", 
 
 Calculating probabilities
 
-<<>>=
+<<echo=FALSE>>=
 range_limits <- c(40, 50, 60, 70)
 fc <- as.data.frame(fc.Brent2)
 sigma <- (fc$"Hi 95"[nrow(fc)] - fc$"Lo 95"[nrow(fc)])/4
@@ -439,7 +439,7 @@ My previous forecast was: 0\%, 0\%, 9\%, 71\%, 20\%. For my new forecast I stick
 
 \section{2017-11-24}
 
-<<>>=
+<<echo=FALSE>>=
 # Reading the data
 reading.date <- ymd("2017-11-24")
 Brent <- read.csv("data/RBRTEd-2b.csv",
@@ -509,7 +509,7 @@ plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", 
 
 Calculating probabilities
 
-<<>>=
+<<echo=FALSE>>=
 range_limits <- c(40, 50, 60, 70)
 fc <- as.data.frame(fc.Brent2)
 sigma <- (fc$"Hi 95"[nrow(fc)] - fc$"Lo 95"[nrow(fc)])/4
@@ -527,7 +527,7 @@ for (i in c(1:5)) {
 
 \section{2017-12-01}
 
-<<>>=
+<<echo=FALSE>>=
 # Reading the data
 reading.date <- ymd("2017-12-01")
 Brent <- read.csv("data/RBRTEd-2c.csv",
@@ -597,7 +597,7 @@ plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", 
 
 Calculating probabilities
 
-<<>>=
+<<echo=FALSE>>=
 range_limits <- c(40, 50, 60, 70)
 fc <- as.data.frame(fc.Brent2)
 sigma <- (fc$"Hi 95"[nrow(fc)] - fc$"Lo 95"[nrow(fc)])/4
@@ -611,8 +611,82 @@ for (i in c(1:5)) {
 }
 @
 
-After OPEC's decision yesterday to maintain production limits prices are rising. Sinking below 60\$ has become unlikely (5\%). Rising above 70\$ gets the same probability. 
+After OPEC's decision yesterday to maintain production limits prices are rising. Sinking below 60\$ has become unlikely (10\%). Rising above 70\$ gets 5\%. 
 
-\textbf{Forecast 7 (dec): 0\%, 0\%, 5\%, 90\%, 5\% }.
+\textbf{Forecast 7 (dec): 0\%, 0\%, 10\%, 85\%, 5\% }.
+
+\section{2017-12-06}
+
+<<echo=FALSE>>=
+# Reading the data
+reading.date <- ymd("2017-12-06")
+Brent <- read.csv("data/RBRTEd-2d.csv",
+                  header=TRUE, sep=";", 
+                  dec=",",skip=3,col.names=c("Day","Price"),
+                  na.strings="NA",
+                  stringsAsFactors = FALSE)
+Brent$Day <- mdy(Brent$Day)
+Brent17 <- Brent %>% filter(year(Day)==2017 & Day <= reading.date) %>% arrange(Day)
+# Interpolating the missing data on weekends etc.
+allDates <- data.frame(Day=seq(min(Brent17$Day) , max(Brent17$Day), "day"))
+Brent17_ext <- left_join(allDates,Brent17,by="Day")
+Brent17_ext$interpol <- na.approx(Brent17_ext$Price)
+# Transforming it into a time series object. For daily data Rob Hyndman advises to set the frequency parameter to 7
+Brent17_ts <- ts(Brent17_ext$interpol, start = decimal_date(as.Date("2017-01-03")), frequency = 7)
+# Decomposte the time series
+decomp_ts <- stl(Brent17_ts,s.window="periodic",robust=TRUE)$time.series
+# Reordering the results so that the dates are right and we add the variable Type which can have the values "original
+# data", "seasonal", "trend" and "remainder".
+decomp_stl <- data.frame(Price=c(Brent17_ext$interpol,as.numeric(decomp_ts)),
+                         Date=rep(Brent17_ext[,"Day"],ncol(decomp_ts)+1),
+                         Type=factor(rep(c("original data",colnames(decomp_ts)),
+                                          each=nrow(decomp_ts)),
+                                     levels=c("original data",colnames(decomp_ts))))
+@
+
+<<label=Brent_decompd,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(decomp_stl, aes(x=Date,y=Price)) +
+  geom_line() +
+  facet_grid(Type~., scales="free_y", switch="y")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_decompd}
+\captionof{figure}{Decomposed Brent17 data}
+\label{fig:Brent_decompd}
+\end{center}
+
+<<label=Brent_fc2d,fig=TRUE,include=FALSE, echo=FALSE>>=
+fit.Brent2 <- ets(Brent17_ext$interpol)
+fit.Brent2
+fc.Brent2 <- forecast(fit.Brent2,h=days.ahead)
+plot(fc.Brent2, main="Forecast optimies parameters", ylab="Price", xlab="Date", flty=2)
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{Brent-Brent_fc2d}
+\captionof{figure}{Forecast}
+\label{fig:Brent_fc2d}
+\end{center}
+
+Calculating probabilities
+
+<<echo=FALSE>>=
+range_limits <- c(40, 50, 60, 70)
+fc <- as.data.frame(fc.Brent2)
+sigma <- (fc$"Hi 95"[nrow(fc)] - fc$"Lo 95"[nrow(fc)])/4
+print(paste("sigma=",round(sigma,2)))
+mu <- fc$"Point Forecast"[nrow(fc)]
+print(paste("mu=",round(mu,2)))
+for (i in c(1:5)) {
+  ifelse(i==1 , print(paste0("less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma),3))) ,
+         ifelse(i==5 , print(paste0("more than ",range_limits[i-1]," = ", 100*round(1 - pnorm(range_limits[i-1],mu,sigma),3))) ,
+         print(paste0("more than ", range_limits[i-1] , " and less than or equal to ",range_limits[i], " = ", 100*round(pnorm(range_limits[i],mu,sigma) - pnorm(range_limits[i-1],mu,sigma),3)))))
+}
+@
+
+Steady around 64\$ for a week. I adjust the calculated for the range 50-60 downwards.
+
+\textbf{Forecast 8 (dec): 0\%, 0\%, 4\%, 92\%, 4\% }.
 
 \end{document}
